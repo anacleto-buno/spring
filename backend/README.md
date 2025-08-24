@@ -42,55 +42,68 @@ This project is a production-ready C# .NET 9 Web API following enterprise archit
 - UnitPrice: decimal(15,2) - Product unit price
 ```
 
-## 🚀 Getting Started
 
-### **Prerequisites**
-- [.NET 9 SDK](https://dotnet.microsoft.com/download)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop)
+# Spring Backend API
 
-### **Build and Run**
+This is the backend API for the Spring project, built with C# .NET 9, Entity Framework Core, LINQ, Docker, and PostgreSQL.
 
-#### **Option 1: Docker (Recommended)**
-```powershell
-# Build and run with Docker Compose
-docker-compose up --build
+## Features
 
-# Run in detached mode
-docker-compose up -d --build
+- C# .NET 9, EF Core, LINQ
+- Dockerized with PostgreSQL
+- Product CRUD operations
+- Bulk product generation
+- Comprehensive filtering/search API
+
+## Getting Started
+
+1. Clone the repository
+2. Build the project: `dotnet build`
+3. Run with Docker Compose: `docker-compose up -d`
+4. Access API at `http://localhost:5000`
+
+## API Endpoints
+
+### Products
+- `GET /api/product` - Get all products
+- `GET /api/product/{id}` - Get product by ID
+- `GET /api/product/by-sku/{sku}` - Get product by SKU
+- `POST /api/product` - Create product
+- `PUT /api/product/{id}` - Update product
+- `DELETE /api/product/{id}` - Delete product
+- `POST /api/product/generate/{count}` - Bulk generate products
+
+### Filtering/Search
+- `GET /api/product/search?searchTerm={term}` - Search products by any property (name, description, category, brand, SKU, availability status, colors, sizes, etc)
+  - Case-insensitive, partial match across all major product fields
+  - Returns 400 Bad Request for empty/null search terms
+
+#### Example Searches
+```http
+GET /api/product/search?searchTerm=phone
+GET /api/product/search?searchTerm=Variant 407
+GET /api/product/search?searchTerm=SKU
+GET /api/product/search?searchTerm=Generated
 ```
 
-#### **Option 2: Local Development**
-```powershell
-# Build the project
-dotnet build src/
+## Configuration
 
-# Run locally (requires PostgreSQL running)
-dotnet run --project src/
-```
+See `appsettings.json` for database connection and other settings.
 
-## 📡 API Endpoints
+## Development
 
-### **Products Controller** (`/api/products`)
+- Optimized architecture and error handling
+- Global exception middleware
+- DTOs for API responses
+- Logging for all major operations
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| `GET` | `/api/products` | Get all products | - | `ProductDto[]` |
-| `GET` | `/api/products/{id}` | Get product by ID | - | `ProductDto` |
-| `GET` | `/api/products/by-sku/{sku}` | Get product by SKU | - | `ProductDto` |
-| `POST` | `/api/products` | Create new product | `CreateProductDto` | `ProductDto` |
-| `PUT` | `/api/products/{id}` | Update product | `UpdateProductDto` | `204 No Content` |
-| `DELETE` | `/api/products/{id}` | Delete product | - | `204 No Content` |
+## Testing
 
-### **System Endpoints**
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Health check |
-| `GET` | `/swagger` | API documentation |
+Use the included `BackendApi.http` file for sample requests and API testing.
 
-## 🏗️ Project Structure
+## License
 
-```
-src/
+MIT
 ├── Controllers/          # API Controllers
 │   └── ProductController.cs
 ├── DTOs/                # Data Transfer Objects

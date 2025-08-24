@@ -85,20 +85,39 @@ namespace BackendApi.Repositories
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return await GetAllAsync();
 
-            var lowerSearchTerm = searchTerm.ToLower();
-            
-            return await _context.Products
-                .Where(p => 
-                    EF.Functions.ILike(p.Name, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(p.Description, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(p.Category, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(p.Brand, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(p.SKU, $"%{searchTerm}%") ||
-                    EF.Functions.ILike(p.AvailabilityStatus, $"%{searchTerm}%") ||
-                    (p.AvailableColors != null && EF.Functions.ILike(p.AvailableColors, $"%{searchTerm}%")) ||
-                    (p.AvailableSizes != null && EF.Functions.ILike(p.AvailableSizes, $"%{searchTerm}%"))
-                )
-                .ToListAsync();
+            // Detect provider: use ILike for PostgreSQL, fallback for InMemory
+            var providerName = _context.Database.ProviderName;
+            if (providerName != null && providerName.Contains("Npgsql"))
+            {
+                return await _context.Products
+                    .Where(p =>
+                        EF.Functions.ILike(p.Name, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Description, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Category, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Brand, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.SKU, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.AvailabilityStatus, $"%{searchTerm}%") ||
+                        (p.AvailableColors != null && EF.Functions.ILike(p.AvailableColors, $"%{searchTerm}%")) ||
+                        (p.AvailableSizes != null && EF.Functions.ILike(p.AvailableSizes, $"%{searchTerm}%"))
+                    )
+                    .ToListAsync();
+            }
+            else
+            {
+                var lowerSearchTerm = searchTerm.ToLower();
+                return await _context.Products
+                    .Where(p =>
+                        (!string.IsNullOrEmpty(p.Name) && p.Name.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.Description) && p.Description.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.Category) && p.Category.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.Brand) && p.Brand.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.SKU) && p.SKU.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.AvailabilityStatus) && p.AvailabilityStatus.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.AvailableColors) && p.AvailableColors.ToLower().Contains(lowerSearchTerm)) ||
+                        (!string.IsNullOrEmpty(p.AvailableSizes) && p.AvailableSizes.ToLower().Contains(lowerSearchTerm))
+                    )
+                    .ToListAsync();
+            }
         }
     }
 }

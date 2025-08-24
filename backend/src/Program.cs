@@ -48,12 +48,12 @@ builder.Services.AddSwaggerGen(c =>
     }
 });
 
-// Add CORS if needed
+// Add CORS: allow all origins, methods, and headers (no restrictions)
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowSpecificOrigins", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:4200") // Add your frontend URLs
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
@@ -126,8 +126,8 @@ app.Use(async (context, next) =>
 
 app.UseHttpsRedirection();
 
-// Enable CORS
-app.UseCors("AllowSpecificOrigins");
+// Enable unrestricted CORS
+app.UseCors("AllowAll");
 
 // Add authentication/authorization middleware if needed
 // app.UseAuthentication();
@@ -150,3 +150,6 @@ app.MapGet("/health", async (AppDbContext dbContext) =>
 });
 
 app.Run();
+
+// Make Program class accessible to integration tests
+public partial class Program { }
