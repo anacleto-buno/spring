@@ -4,3 +4,35 @@ GET {{BackendApi_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+# Product API Tests
+
+# Get all products
+GET {{BackendApi_HostAddress}}/api/product
+Accept: application/json
+
+###
+
+# Search products by term
+GET {{BackendApi_HostAddress}}/api/product/search?searchTerm=phone
+Accept: application/json
+
+###
+
+# Search products by category
+GET {{BackendApi_HostAddress}}/api/product/search?searchTerm=electronics
+Accept: application/json
+
+###
+
+# Search products by brand
+GET {{BackendApi_HostAddress}}/api/product/search?searchTerm=apple
+Accept: application/json
+
+###
+
+# Search products by SKU pattern
+GET {{BackendApi_HostAddress}}/api/product/search?searchTerm=SKU
+Accept: application/json
+
+###

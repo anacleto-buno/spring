@@ -25,8 +25,6 @@ namespace BackendApi.Models
                 entity.Property(e => e.AvailableColors).HasMaxLength(500);
                 entity.Property(e => e.AvailableSizes).HasMaxLength(500);
                 
-                // Add index on SKU for performance
-                entity.HasIndex(e => e.SKU).IsUnique();
             });
 
             base.OnModelCreating(modelBuilder);

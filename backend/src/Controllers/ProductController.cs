@@ -33,6 +33,31 @@ namespace BackendApi.Controllers
         }
 
         /// <summary>
+        /// Search products by term
+        /// </summary>
+        /// <param name="searchTerm">Search term to filter products by (searches across name, description, category, brand, SKU, colors, sizes, and availability status)</param>
+        /// <returns>List of products matching the search term</returns>
+        [HttpGet("search")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<ProductDto>>> SearchProducts([FromQuery] string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+            {
+                _logger.LogWarning("Search attempted with empty or null search term");
+                return BadRequest("Search term cannot be empty or null");
+            }
+
+            _logger.LogInformation("Searching products with term: {SearchTerm}", searchTerm);
+            var products = await _productService.SearchProductsAsync(searchTerm);
+            _logger.LogInformation("Found {Count} products matching search term: {SearchTerm}", 
+                products.Count(), searchTerm);
+            
+            return Ok(products);
+        }
+
+        /// <summary>
         /// Get a specific product by ID
         /// </summary>
         /// <param name="id">Product ID</param>
@@ -157,6 +182,49 @@ namespace BackendApi.Controllers
 
             _logger.LogInformation("Product with ID {ProductId} deleted successfully", id);
             return NoContent();
+        }
+
+        /// <summary>
+        /// Generate bulk products
+        /// </summary>
+        /// <param name="count">Number of products to generate (1-10000), defaults to 1000</param>
+        /// <param name="template">Product template to use as base for generation (optional)</param>
+        /// <returns>Number of products created</returns>
+        [HttpPost("generate/{count:int?}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<object>> BulkGenerateProducts(int count = 1000, [FromBody] ProductDto? template = null)
+        {
+            _logger.LogInformation("Starting bulk generation of {Count} products", count);
+            
+            if (count < 1 || count > 10000)
+            {
+                return BadRequest("Count must be between 1,000 and 10,000");
+            }
+            
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var startTime = DateTime.UtcNow;
+            var productsCreated = await _productService.BulkGenerateProductsAsync(count, template);
+            var endTime = DateTime.UtcNow;
+            var duration = endTime - startTime;
+
+            _logger.LogInformation("Successfully generated {ProductsCreated} products in {Duration}ms", 
+                productsCreated, duration.TotalMilliseconds);
+
+            return Ok(new
+            {
+                Message = "Products generated successfully",
+                ProductsCreated = productsCreated,
+                RequestedCount = count,
+                GenerationTimeMs = duration.TotalMilliseconds,
+                Timestamp = endTime,
+                UsedTemplate = template != null
+            });
         }
     }
 }

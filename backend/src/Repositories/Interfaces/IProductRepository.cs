@@ -11,5 +11,7 @@ namespace BackendApi.Repositories.Interfaces
         Task<bool> DeleteAsync(Guid id);
         Task<bool> ExistsAsync(Guid id);
         Task<Product?> GetBySKUAsync(string sku);
+        Task<int> BulkInsertAsync(IEnumerable<Product> products);
+        Task<IEnumerable<Product>> SearchAsync(string searchTerm);
     }
 }

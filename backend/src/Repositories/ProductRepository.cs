@@ -73,5 +73,32 @@ namespace BackendApi.Repositories
         {
             return await _context.Products.FirstOrDefaultAsync(p => p.SKU == sku);
         }
+
+        public async Task<int> BulkInsertAsync(IEnumerable<Product> products)
+        {
+            _context.Products.AddRange(products);
+            return await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<Product>> SearchAsync(string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+                return await GetAllAsync();
+
+            var lowerSearchTerm = searchTerm.ToLower();
+            
+            return await _context.Products
+                .Where(p => 
+                    EF.Functions.ILike(p.Name, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(p.Description, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(p.Category, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(p.Brand, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(p.SKU, $"%{searchTerm}%") ||
+                    EF.Functions.ILike(p.AvailabilityStatus, $"%{searchTerm}%") ||
+                    (p.AvailableColors != null && EF.Functions.ILike(p.AvailableColors, $"%{searchTerm}%")) ||
+                    (p.AvailableSizes != null && EF.Functions.ILike(p.AvailableSizes, $"%{searchTerm}%"))
+                )
+                .ToListAsync();
+        }
     }
 }

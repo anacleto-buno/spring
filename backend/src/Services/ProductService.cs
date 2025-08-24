@@ -2,6 +2,7 @@ using BackendApi.DTOs;
 using BackendApi.Models;
 using BackendApi.Repositories.Interfaces;
 using BackendApi.Services.Interfaces;
+using BackendApi.Utilities;
 
 namespace BackendApi.Services
 {
@@ -171,6 +172,33 @@ namespace BackendApi.Services
                 AvailableColors = product.AvailableColors,
                 AvailableSizes = product.AvailableSizes
             };
+        }
+
+        public async Task<int> BulkGenerateProductsAsync(int count, ProductDto? template)
+        {
+            var products = ProductGenerator.GenerateProducts(count, template);
+            return await _productRepository.BulkInsertAsync(products);
+        }
+
+        public async Task<IEnumerable<ProductDto>> SearchProductsAsync(string searchTerm)
+        {
+            var products = await _productRepository.SearchAsync(searchTerm);
+            return products.Select(p => new ProductDto
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Description = p.Description,
+                Category = p.Category,
+                Brand = p.Brand,
+                Price = p.Price,
+                StockQuantity = p.StockQuantity,
+                SKU = p.SKU,
+                ReleaseDate = p.ReleaseDate,
+                AvailabilityStatus = p.AvailabilityStatus,
+                CustomerRating = p.CustomerRating,
+                AvailableColors = p.AvailableColors,
+                AvailableSizes = p.AvailableSizes
+            });
         }
     }
 }

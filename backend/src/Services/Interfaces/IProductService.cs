@@ -11,5 +11,7 @@ namespace BackendApi.Services.Interfaces
         Task<bool> DeleteProductAsync(Guid id);
         Task<bool> ProductExistsAsync(Guid id);
         Task<ProductDto?> GetProductBySKUAsync(string sku);
+        Task<int> BulkGenerateProductsAsync(int count, ProductDto? template);
+        Task<IEnumerable<ProductDto>> SearchProductsAsync(string searchTerm);
     }
 }
