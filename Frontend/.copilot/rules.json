@@ -1,0 +1,99 @@
+{
+  "rules": {
+    "general": {
+      "language": "TypeScript (strict mode enabled)",
+      "styleGuide": "Airbnb + React community style guides",
+      "components": "Prefer functional components with React Hooks",
+      "types": {
+        "props": "Always include type definitions",
+        "interfaces": "Use interface for object shapes",
+        "types": "Use type for unions and utility types"
+      },
+      "functions": "Keep functions small, single-responsibility, and composable"
+    },
+    "cleanCode": {
+      "principles": ["SOLID", "DRY", "KISS"],
+      "naming": "Use descriptive names for variables, functions, and components",
+      "constants": "Avoid magic numbers and strings, extract constants or enums",
+      "components": "Split large components into presentational + container components",
+      "immutability": "Prefer immutable data structures"
+    },
+    "react": {
+      "propsTyping": "Explicitly type props, avoid React.FC unless typing children",
+      "state": ["useState", "useReducer", "useContext"],
+      "effects": "Always declare dependency arrays in useEffect",
+      "memoization": ["useMemo", "useCallback for expensive calculations"],
+      "dataFetching": "Prefer React Query for server state",
+      "features": ["Error Boundaries", "Suspense", "lazy-loaded routes"]
+    },
+    "libraries": {
+      "routing": "react-router-dom",
+      "dataFetching": "@tanstack/react-query",
+      "forms": "react-hook-form",
+      "stateManagement": ["zustand", "redux-toolkit"],
+      "ui": ["shadcn/ui", "mui"],
+      "security": "DOMPurify for sanitizing inputs",
+      "testing": ["jest", "react-testing-library", "msw"],
+      "linting": ["eslint with @typescript-eslint", "prettier"]
+    },
+    "tests": {
+      "framework": ["jest", "@testing-library/react"],
+      "coverageGoal": "80%+ meaningful coverage",
+      "mocking": "msw for API mocks",
+      "bestPractices": "Prefer queries like getByRole, getByText over test IDs"
+    },
+    "patterns": {
+      "architecture": [
+        "Container/Presenter separation",
+        "Hooks over HOCs",
+        "Context + Reducer for global state",
+        "Factory/Builder for object creation",
+        "Dependency Injection for services",
+        "Composition over inheritance"
+      ]
+    },
+    "performance": {
+      "codeSplitting": "React.lazy + Suspense",
+      "memoization": ["useMemo", "useCallback"],
+      "lists": "Virtualization with react-window/react-virtualized",
+      "rendering": "Avoid unnecessary re-renders with stable keys and handlers",
+      "bundling": "Tree-shaking and optimized imports"
+    },
+    "security": {
+      "sanitization": "Always sanitize user content with DOMPurify",
+      "secrets": "Never store API keys in frontend code",
+      "validation": "Validate all API responses",
+      "protocols": "Use HTTPS only",
+      "xss": "Avoid dangerouslySetInnerHTML"
+    },
+    "structure": {
+      "folders": [
+        "components → reusable UI components",
+        "pages → route-level components",
+        "hooks → custom React hooks",
+        "context → React contexts",
+        "services → API clients and services",
+        "utils → helper functions",
+        "tests → unit & integration tests",
+        "styles → global styles and theme"
+      ]
+    },
+    "documentation": {
+      "comments": "Use JSDoc/TSDoc for public functions, hooks, and utilities",
+      "logic": "Comment complex business rules inline",
+      "readme": "Maintain a README.md with setup, scripts, and conventions"
+    }
+  },
+  "suggestions": [
+    "When generating a component, include prop typing and default values.",
+    "For forms, prefer react-hook-form with schema validation via zod or yup.",
+    "Generate unit tests alongside components using jest + testing-library.",
+    "Use async/await syntax with try/catch instead of .then chains.",
+    "Suggest error boundaries for critical UI components.",
+    "Propose lazy loading for non-critical routes or large components.",
+    "When suggesting API calls, wrap them in a typed service function in /services.",
+    "Favor named exports over default exports for better IDE autocompletion.",
+    "Always include accessibility attributes (aria-*) in JSX.",
+    "Add ESLint disable comments only as a last resort and explain why."
+  ]
+}
