@@ -5,6 +5,7 @@ using BackendApi.Repositories.Interfaces;
 using BackendApi.Services;
 using BackendApi.Services.Interfaces;
 using BackendApi.Middleware;
+using BackendApi.Mapping;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
@@ -15,11 +16,18 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Repository registration
+// Repository registration - Generic and Specific
+builder.Services.AddScoped(typeof(IRepository<>), typeof(BaseRepository<>));
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+
+// Unit of Work registration
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Service registration
 builder.Services.AddScoped<IProductService, ProductService>();
+
+// AutoMapper configuration
+builder.Services.AddAutoMapper(typeof(ProductMappingProfile));
 
 // Add controllers with API behavior options
 builder.Services.AddControllers()

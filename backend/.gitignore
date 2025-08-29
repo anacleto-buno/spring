@@ -1,2 +1,19 @@
 bin
 obj
+
+# Backup files
+*.backup
+*.backup2
+*.bak
+*.old
+*.temp
+*~
+
+# Editor temp files
+.vscode/settings.json
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db

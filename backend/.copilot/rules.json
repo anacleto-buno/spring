@@ -1,0 +1,183 @@
+{
+  "version": "1.2",
+  "rules": [
+    {
+      "description": "General coding style and conventions",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Follow .NET 9 and C# 13 conventions (PascalCase for public members, camelCase for locals/private fields).",
+        "Prefer implicit typing (var) only when type is obvious from the right-hand side.",
+        "Use string interpolation instead of concatenation.",
+        "Use expression-bodied members for concise code when appropriate.",
+        "Avoid unnecessary regions and comments; write self-explanatory code instead.",
+        "CRITICAL: Never duplicate class members or methods - check for existing implementations before adding new ones.",
+        "Always use proper file organization with clear namespace structure."
+      ]
+    },
+    {
+      "description": "AutoMapper and Object Mapping",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "CRITICAL: Do NOT create AutoMapper mappings from interface to interface (e.g., IEnumerable<T> to IEnumerable<U>).",
+        "Always map to concrete types: IEnumerable<Entity> should map to List<Dto>, not IEnumerable<Dto>.",
+        "Create explicit mapping profiles for all entities and DTOs.",
+        "Test all AutoMapper configurations to ensure they work correctly.",
+        "Use AutoMapper.Map<List<T>>() for collections, never Map<IEnumerable<T>>().",
+        "Validate AutoMapper configurations at startup to catch mapping errors early."
+      ]
+    },
+    {
+      "description": "Repository and Unit of Work Pattern",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Always implement generic repository pattern with proper interfaces.",
+        "Use Unit of Work pattern for transaction management across multiple repositories.",
+        "All repository methods must be async and return Task<T> or Task.",
+        "Include pagination support at the repository level with efficient Skip/Take queries.",
+        "Implement proper disposal pattern for DbContext through Unit of Work.",
+        "Never expose DbContext directly to services - always go through repositories."
+      ]
+    },
+    {
+      "description": "DTO and API Design",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Create separate DTOs for different operations: CreateDto, UpdateDto, ResponseDto, ListDto.",
+        "Use PagedResult<T> wrapper for all paginated API responses.",
+        "Always validate DTOs with data annotations or FluentValidation.",
+        "Ensure API endpoints return proper HTTP status codes (201 for Create, 200 for Update, etc.).",
+        "Use consistent naming conventions for all DTOs and API endpoints.",
+        "Never expose internal entity models directly through API endpoints."
+      ]
+    },
+    {
+      "description": "Error handling and safety",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Use exceptions only for exceptional cases, not control flow.",
+        "Validate all external input (API, DB, user).",
+        "Use nullable reference types and always handle nullability explicitly.",
+        "Log errors with structured logging (Serilog recommended).",
+        "Apply the guard clause pattern to simplify precondition checks.",
+        "Create custom exception types for business logic violations.",
+        "Always include correlation IDs for request tracking."
+      ]
+    },
+    {
+      "description": "Testing Strategy",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Write comprehensive unit tests with minimum 90% code coverage.",
+        "Use xUnit, FluentAssertions, and FakeItEasy/Moq for testing.",
+        "Test both happy path and edge cases for all methods.",
+        "Create integration tests for API endpoints using TestServer.",
+        "Mock AutoMapper correctly to match actual service implementation signatures.",
+        "Test AutoMapper configurations separately to ensure they work.",
+        "Use TestContainers for database integration tests.",
+        "Ensure all tests are isolated and can run independently."
+      ]
+    },
+    {
+      "description": "Security best practices",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Never hardcode secrets; use Azure Key Vault or environment variables.",
+        "Sanitize all user inputs to prevent injection attacks.",
+        "Always use async I/O methods for external calls (DB, API, Files).",
+        "Prefer HttpClientFactory for HTTP calls (Polly for resilience).",
+        "Use the latest versions of Microsoft.Identity, System.Text.Json, and EF Core.",
+        "Implement proper input validation at all API boundaries.",
+        "Use parameterized queries to prevent SQL injection."
+      ]
+    },
+    {
+      "description": "Design patterns and architecture",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Favor dependency injection; avoid service locators or static dependencies.",
+        "Keep controllers thin: business logic should live in services.",
+        "Use repository + unit of work pattern for persistence.",
+        "Apply CQRS for complex domains when separation of queries/commands is beneficial.",
+        "Use record types for immutable DTOs and value objects.",
+        "Implement proper service layer abstraction with interfaces.",
+        "Follow SOLID principles consistently throughout the codebase."
+      ]
+    },
+    {
+      "description": "Database and Entity Framework",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Always use async methods for database operations (AddAsync, SaveChangesAsync, etc.).",
+        "Implement proper indexing strategy for search and filter fields.",
+        "Use Include() and ThenInclude() carefully to avoid N+1 queries.",
+        "Implement proper entity configurations for performance optimization.",
+        "Use bulk operations for large data sets to improve performance.",
+        "Always handle database migrations properly in production environments."
+      ]
+    },
+    {
+      "description": "Performance and optimization",
+      "patterns": ["*.cs"],
+      "guidelines": [
+        "Use async/await throughout; avoid blocking calls (Task.Result, .Wait()).",
+        "Prefer Span<T> and Memory<T> for high-performance data processing.",
+        "Cache expensive computations and remote calls when possible (use IMemoryCache or Redis).",
+        "Benchmark critical code paths with BenchmarkDotNet before optimizing.",
+        "Avoid premature optimization; prioritize readability first.",
+        "Implement pagination for all list operations to handle large datasets.",
+        "Use proper connection pooling and optimize database queries."
+      ]
+    },
+    {
+      "description": "File and Code Organization",
+      "patterns": ["*.cs", "*.csproj"],
+      "guidelines": [
+        "Organize code into logical folders: Controllers, Services, Repositories, DTOs, Models.",
+        "Keep backup files (.backup, .backup2) out of main codebase - use version control.",
+        "Ensure consistent naming conventions across all files and namespaces.",
+        "Create proper separation of concerns with clear layer boundaries.",
+        "Use meaningful file and class names that reflect their purpose.",
+        "Avoid code duplication by using proper inheritance and composition patterns."
+      ]
+    },
+    {
+      "description": "Development Workflow",
+      "patterns": ["*"],
+      "guidelines": [
+        "Always run tests after making changes to ensure nothing breaks.",
+        "Use proper git workflow with meaningful commit messages.",
+        "Test both unit and integration tests before considering a feature complete.",
+        "Validate all changes work in both development and production-like environments.",
+        "Document any breaking changes or new features in appropriate documentation.",
+        "Review and clean up any temporary or duplicate code before finalizing changes."
+      ]
+    },
+    {
+      "description": "Terminal and Command Line Usage",
+      "patterns": ["*"],
+      "guidelines": [
+        "CRITICAL: Always use PowerShell commands when working in Windows environment.",
+        "Use PowerShell cmdlets instead of Unix commands: Get-ChildItem (not ls), Select-String (not grep), Where-Object (not where).",
+        "Use PowerShell operators and syntax: -match, -like, -contains instead of Unix equivalents.",
+        "For file operations use: Copy-Item, Move-Item, Remove-Item instead of cp, mv, rm.",
+        "Use Get-Content, Set-Content for file reading/writing instead of cat, echo >.",
+        "Always test commands in PowerShell environment before suggesting them.",
+        "Use PowerShell pipeline operations with | and cmdlets like Sort-Object, Select-Object, Measure-Object.",
+        "Prefer PowerShell's built-in help system: Get-Help <cmdlet-name> -Examples."
+      ]
+    },
+    {
+      "description": "Libraries and tools",
+      "patterns": ["*.csproj"],
+      "guidelines": [
+        "Use Entity Framework Core 9 for ORM.",
+        "Use Serilog for logging.",
+        "Use Polly for retries and circuit breakers.",
+        "Use AutoMapper for object mapping when necessary (but avoid overuse).",
+        "Use System.Text.Json instead of Newtonsoft.Json unless specific features are required.",
+        "Keep NuGet packages up to date and use only necessary dependencies.",
+        "Use FluentValidation for complex validation scenarios."
+      ]
+    }
+  ]
+}

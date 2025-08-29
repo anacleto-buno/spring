@@ -44,5 +44,15 @@ namespace BackendApi.Models
         
         [MaxLength(500)]
         public string? AvailableSizes { get; set; }
+
+        /// <summary>
+        /// When the product was created
+        /// </summary>
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>
+        /// When the product was last updated
+        /// </summary>
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

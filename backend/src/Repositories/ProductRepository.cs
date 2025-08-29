@@ -4,80 +4,21 @@ using BackendApi.Repositories.Interfaces;
 
 namespace BackendApi.Repositories
 {
-    public class ProductRepository : IProductRepository
+    /// <summary>
+    /// Product repository implementation with specific product operations
+    /// </summary>
+    public class ProductRepository : BaseRepository<Product>, IProductRepository
     {
-        private readonly AppDbContext _context;
-
-        public ProductRepository(AppDbContext context)
+        public ProductRepository(AppDbContext context) : base(context)
         {
-            _context = context;
-        }
-
-        public async Task<IEnumerable<Product>> GetAllAsync()
-        {
-            return await _context.Products.ToListAsync();
-        }
-
-        public async Task<Product?> GetByIdAsync(Guid id)
-        {
-            return await _context.Products.FindAsync(id);
-        }
-
-        public async Task<Product> CreateAsync(Product product)
-        {
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
-            return product;
-        }
-
-        public async Task<Product?> UpdateAsync(Guid id, Product product)
-        {
-            var existingProduct = await _context.Products.FindAsync(id);
-            if (existingProduct == null)
-                return null;
-
-            existingProduct.Name = product.Name;
-            existingProduct.Description = product.Description;
-            existingProduct.Category = product.Category;
-            existingProduct.Brand = product.Brand;
-            existingProduct.Price = product.Price;
-            existingProduct.StockQuantity = product.StockQuantity;
-            existingProduct.SKU = product.SKU;
-            existingProduct.ReleaseDate = product.ReleaseDate;
-            existingProduct.AvailabilityStatus = product.AvailabilityStatus;
-            existingProduct.CustomerRating = product.CustomerRating;
-            existingProduct.AvailableColors = product.AvailableColors;
-            existingProduct.AvailableSizes = product.AvailableSizes;
-
-            await _context.SaveChangesAsync();
-            return existingProduct;
-        }
-
-        public async Task<bool> DeleteAsync(Guid id)
-        {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-                return false;
-
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<bool> ExistsAsync(Guid id)
-        {
-            return await _context.Products.AnyAsync(p => p.Id == id);
         }
 
         public async Task<Product?> GetBySKUAsync(string sku)
         {
-            return await _context.Products.FirstOrDefaultAsync(p => p.SKU == sku);
-        }
+            if (string.IsNullOrWhiteSpace(sku))
+                throw new ArgumentException("SKU cannot be null or empty", nameof(sku));
 
-        public async Task<int> BulkInsertAsync(IEnumerable<Product> products)
-        {
-            _context.Products.AddRange(products);
-            return await _context.SaveChangesAsync();
+            return await _dbSet.FirstOrDefaultAsync(p => p.SKU == sku);
         }
 
         public async Task<IEnumerable<Product>> SearchAsync(string searchTerm)
@@ -85,39 +26,105 @@ namespace BackendApi.Repositories
             if (string.IsNullOrWhiteSpace(searchTerm))
                 return await GetAllAsync();
 
-            // Detect provider: use ILike for PostgreSQL, fallback for InMemory
+            var lowerSearchTerm = searchTerm.ToLower();
+
+            // Detect provider: use ILike for PostgreSQL, fallback for other providers
             var providerName = _context.Database.ProviderName;
             if (providerName != null && providerName.Contains("Npgsql"))
             {
-                return await _context.Products
+                return await _dbSet
                     .Where(p =>
                         EF.Functions.ILike(p.Name, $"%{searchTerm}%") ||
-                        EF.Functions.ILike(p.Description, $"%{searchTerm}%") ||
-                        EF.Functions.ILike(p.Category, $"%{searchTerm}%") ||
-                        EF.Functions.ILike(p.Brand, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Description ?? "", $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Category ?? "", $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.Brand ?? "", $"%{searchTerm}%") ||
                         EF.Functions.ILike(p.SKU, $"%{searchTerm}%") ||
-                        EF.Functions.ILike(p.AvailabilityStatus, $"%{searchTerm}%") ||
+                        EF.Functions.ILike(p.AvailabilityStatus ?? "", $"%{searchTerm}%") ||
                         (p.AvailableColors != null && EF.Functions.ILike(p.AvailableColors, $"%{searchTerm}%")) ||
                         (p.AvailableSizes != null && EF.Functions.ILike(p.AvailableSizes, $"%{searchTerm}%"))
                     )
+                    .OrderBy(p => p.Name)
                     .ToListAsync();
             }
             else
             {
-                var lowerSearchTerm = searchTerm.ToLower();
-                return await _context.Products
+                return await _dbSet
                     .Where(p =>
-                        (!string.IsNullOrEmpty(p.Name) && p.Name.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.Description) && p.Description.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.Category) && p.Category.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.Brand) && p.Brand.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.SKU) && p.SKU.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.AvailabilityStatus) && p.AvailabilityStatus.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.AvailableColors) && p.AvailableColors.ToLower().Contains(lowerSearchTerm)) ||
-                        (!string.IsNullOrEmpty(p.AvailableSizes) && p.AvailableSizes.ToLower().Contains(lowerSearchTerm))
+                        p.Name.ToLower().Contains(lowerSearchTerm) ||
+                        (p.Description != null && p.Description.ToLower().Contains(lowerSearchTerm)) ||
+                        (p.Category != null && p.Category.ToLower().Contains(lowerSearchTerm)) ||
+                        (p.Brand != null && p.Brand.ToLower().Contains(lowerSearchTerm)) ||
+                        p.SKU.ToLower().Contains(lowerSearchTerm) ||
+                        (p.AvailabilityStatus != null && p.AvailabilityStatus.ToLower().Contains(lowerSearchTerm)) ||
+                        (p.AvailableColors != null && p.AvailableColors.ToLower().Contains(lowerSearchTerm)) ||
+                        (p.AvailableSizes != null && p.AvailableSizes.ToLower().Contains(lowerSearchTerm))
                     )
+                    .OrderBy(p => p.Name)
                     .ToListAsync();
             }
+        }
+
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetByCategoryAsync(string category, int page, int pageSize)
+        {
+            if (string.IsNullOrWhiteSpace(category))
+                throw new ArgumentException("Category cannot be null or empty", nameof(category));
+
+            return await GetPagedAsync(
+                page,
+                pageSize,
+                filter: p => p.Category != null && p.Category.ToLower() == category.ToLower(),
+                orderBy: q => q.OrderBy(p => p.Name));
+        }
+
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetByBrandAsync(string brand, int page, int pageSize)
+        {
+            if (string.IsNullOrWhiteSpace(brand))
+                throw new ArgumentException("Brand cannot be null or empty", nameof(brand));
+
+            return await GetPagedAsync(
+                page,
+                pageSize,
+                filter: p => p.Brand != null && p.Brand.ToLower() == brand.ToLower(),
+                orderBy: q => q.OrderBy(p => p.Name));
+        }
+
+        public async Task<(IEnumerable<Product> Items, int TotalCount)> GetByPriceRangeAsync(decimal minPrice, decimal maxPrice, int page, int pageSize)
+        {
+            if (minPrice < 0)
+                throw new ArgumentException("Minimum price cannot be negative", nameof(minPrice));
+
+            if (maxPrice < minPrice)
+                throw new ArgumentException("Maximum price cannot be less than minimum price", nameof(maxPrice));
+
+            return await GetPagedAsync(
+                page,
+                pageSize,
+                filter: p => p.Price >= minPrice && p.Price <= maxPrice,
+                orderBy: q => q.OrderBy(p => p.Price));
+        }
+
+        public async Task<bool> ExistsBySKUAsync(string sku)
+        {
+            if (string.IsNullOrWhiteSpace(sku))
+                throw new ArgumentException("SKU cannot be null or empty", nameof(sku));
+
+            return await AnyAsync(p => p.SKU == sku);
+        }
+
+        public async Task<IEnumerable<Product>> GetTopRatedAsync(decimal minimumRating, int count)
+        {
+            if (minimumRating < 0 || minimumRating > 5)
+                throw new ArgumentException("Rating must be between 0 and 5", nameof(minimumRating));
+
+            if (count <= 0)
+                throw new ArgumentException("Count must be greater than 0", nameof(count));
+
+            return await _dbSet
+                .Where(p => p.CustomerRating.HasValue && p.CustomerRating >= minimumRating)
+                .OrderByDescending(p => p.CustomerRating)
+                .ThenBy(p => p.Name)
+                .Take(count)
+                .ToListAsync();
         }
     }
 }

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BackendApi.DTOs;
+using BackendApi.DTOs.Product;
+using BackendApi.DTOs.Common;
 using BackendApi.Models;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,16 +40,17 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var products = await response.Content.ReadFromJsonAsync<List<ProductDto>>();
-        products.Should().NotBeNull();
-        products.Should().BeEmpty();
+        var result = await response.Content.ReadFromJsonAsync<PagedResult<ProductListDto>>();
+        result.Should().NotBeNull();
+        result!.Items.Should().BeEmpty();
+        result.TotalCount.Should().Be(0);
     }
 
     [Fact]
     public async Task CreateProduct_ReturnsCreatedProduct()
     {
         // Arrange
-        var newProduct = new ProductDto
+        var newProduct = new ProductCreateDto
         {
             Name = "Test Product",
             Description = "Test Description",
@@ -68,7 +71,7 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var createdProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
+        var createdProduct = await response.Content.ReadFromJsonAsync<ProductResponseDto>();
         createdProduct.Should().NotBeNull();
         createdProduct!.Name.Should().Be("Test Product");
         createdProduct.Price.Should().Be(99.99m);
@@ -79,7 +82,7 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
     public async Task GetProductById_ReturnsProduct_WhenProductExists()
     {
         // Arrange - Create a product first
-        var newProduct = new ProductDto
+        var newProduct = new ProductCreateDto
         {
             Name = "Test Product for Get",
             Description = "Test Description",
@@ -93,14 +96,14 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
         };
 
         var createResponse = await _httpClient.PostAsJsonAsync("/api/product", newProduct);
-        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
+        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductResponseDto>();
 
         // Act
         var response = await _httpClient.GetAsync($"/api/product/{createdProduct!.Id}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductDto>();
+        var retrievedProduct = await response.Content.ReadFromJsonAsync<ProductResponseDto>();
         retrievedProduct.Should().NotBeNull();
         retrievedProduct!.Id.Should().Be(createdProduct.Id);
         retrievedProduct.Name.Should().Be("Test Product for Get");
@@ -125,9 +128,9 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
         // Arrange - Create test products
         var products = new[]
         {
-            new ProductDto { Name = "Apple iPhone", Description = "Smartphone", SKU = "APPLE-001", Category = "Electronics", Brand = "Apple", Price = 999.99m, StockQuantity = 10, AvailabilityStatus = "Available" },
-            new ProductDto { Name = "Samsung Galaxy", Description = "Android Phone", SKU = "SAMSUNG-001", Category = "Electronics", Brand = "Samsung", Price = 799.99m, StockQuantity = 15, AvailabilityStatus = "Available" },
-            new ProductDto { Name = "Apple Watch", Description = "Smartwatch", SKU = "APPLE-002", Category = "Electronics", Brand = "Apple", Price = 399.99m, StockQuantity = 20, AvailabilityStatus = "Available" }
+            new ProductCreateDto { Name = "Apple iPhone", Description = "Smartphone", SKU = "APPLE-001", Category = "Electronics", Brand = "Apple", Price = 999.99m, StockQuantity = 10, AvailabilityStatus = "Available" },
+            new ProductCreateDto { Name = "Samsung Galaxy", Description = "Android Phone", SKU = "SAMSUNG-001", Category = "Electronics", Brand = "Samsung", Price = 799.99m, StockQuantity = 15, AvailabilityStatus = "Available" },
+            new ProductCreateDto { Name = "Apple Watch", Description = "Smartwatch", SKU = "APPLE-002", Category = "Electronics", Brand = "Apple", Price = 399.99m, StockQuantity = 20, AvailabilityStatus = "Available" }
         };
 
         foreach (var product in products)
@@ -140,10 +143,10 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var searchResults = await response.Content.ReadFromJsonAsync<List<ProductDto>>();
+        var searchResults = await response.Content.ReadFromJsonAsync<PagedResult<ProductListDto>>();
         searchResults.Should().NotBeNull();
-        searchResults.Should().HaveCount(2);
-        searchResults!.Should().OnlyContain(p => p.Name.Contains("Apple") || p.Brand.Contains("Apple"));
+        searchResults!.Items.Should().HaveCount(2);
+        searchResults.Items.Should().OnlyContain(p => p.Name != null && p.Name.Contains("Apple") || p.Brand != null && p.Brand.Contains("Apple"));
     }
 
     [Fact]
@@ -172,10 +175,10 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
     }
 
     [Fact]
-    public async Task UpdateProduct_ReturnsNoContent()
+    public async Task UpdateProduct_ReturnsOK()
     {
         // Arrange - Create a product first
-        var newProduct = new CreateProductDto
+        var newProduct = new ProductCreateDto
         {
             Name = "Original Product",
             Description = "Original Description",
@@ -190,10 +193,10 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
         };
 
         var createResponse = await _httpClient.PostAsJsonAsync("/api/product", newProduct);
-        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductDto>();
+        var createdProduct = await createResponse.Content.ReadFromJsonAsync<ProductResponseDto>();
 
         // Create update DTO with all required fields
-        var updateDto = new UpdateProductDto
+        var updateDto = new ProductUpdateDto
         {
             Name = "Updated Product",
             Price = 149.99m,
@@ -211,7 +214,11 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
         var response = await _httpClient.PutAsJsonAsync($"/api/product/{createdProduct!.Id}", updateDto);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var updatedProduct = await response.Content.ReadFromJsonAsync<ProductResponseDto>();
+        updatedProduct.Should().NotBeNull();
+        updatedProduct!.Name.Should().Be("Updated Product");
+        updatedProduct.Price.Should().Be(149.99m);
     }
 
     [Fact]
@@ -275,9 +282,9 @@ public class ProductControllerIntegrationTests : IClassFixture<CustomWebApplicat
         // Verify products were actually created in the database
         var allProductsResponse = await _httpClient.GetAsync("/api/product");
         allProductsResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var allProducts = await allProductsResponse.Content.ReadFromJsonAsync<List<ProductDto>>();
+        var allProducts = await allProductsResponse.Content.ReadFromJsonAsync<PagedResult<ProductListDto>>();
         allProducts.Should().NotBeNull();
-        allProducts.Should().HaveCountGreaterOrEqualTo(5);
+        allProducts!.TotalCount.Should().BeGreaterOrEqualTo(5);
     }
 
     [Fact]

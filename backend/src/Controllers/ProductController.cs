@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
-using BackendApi.DTOs;
+using BackendApi.DTOs.Product;
+using BackendApi.DTOs.Common;
 using BackendApi.Services.Interfaces;
 
 namespace BackendApi.Controllers
 {
+    /// <summary>
+    /// Product controller with comprehensive REST API operations
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
@@ -14,47 +18,75 @@ namespace BackendApi.Controllers
 
         public ProductController(IProductService productService, ILogger<ProductController> logger)
         {
-            _productService = productService;
-            _logger = logger;
+            _productService = productService ?? throw new ArgumentNullException(nameof(productService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
-        /// Get all products
+        /// Get products with filtering and pagination
         /// </summary>
-        /// <returns>List of products</returns>
+        /// <param name="filter">Filter and pagination parameters</param>
+        /// <returns>Paged list of products</returns>
         [HttpGet]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetProducts()
-        {
-            _logger.LogInformation("Getting all products");
-            var products = await _productService.GetAllProductsAsync();
-            return Ok(products);
-        }
-
-        /// <summary>
-        /// Search products by term
-        /// </summary>
-        /// <param name="searchTerm">Search term to filter products by (searches across name, description, category, brand, SKU, colors, sizes, and availability status)</param>
-        /// <returns>List of products matching the search term</returns>
-        [HttpGet("search")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> SearchProducts([FromQuery] string searchTerm)
+        public async Task<ActionResult<PagedResult<ProductListDto>>> GetProducts([FromQuery] ProductFilterDto filter)
         {
-            if (string.IsNullOrWhiteSpace(searchTerm))
+            try
             {
-                _logger.LogWarning("Search attempted with empty or null search term");
-                return BadRequest("Search term cannot be empty or null");
-            }
+                _logger.LogInformation("Getting products with filter: {@Filter}", filter);
+                
+                if (filter == null)
+                    filter = new ProductFilterDto();
 
-            _logger.LogInformation("Searching products with term: {SearchTerm}", searchTerm);
-            var products = await _productService.SearchProductsAsync(searchTerm);
-            _logger.LogInformation("Found {Count} products matching search term: {SearchTerm}", 
-                products.Count(), searchTerm);
-            
-            return Ok(products);
+                var result = await _productService.GetProductsAsync(filter);
+                
+                _logger.LogInformation("Retrieved {Count} products out of {Total}", 
+                    result.Items.Count(), result.TotalCount);
+                
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid filter parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Search products by term with pagination
+        /// </summary>
+        /// <param name="searchTerm">Search term to filter products</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
+        /// <returns>Paged search results</returns>
+        [HttpGet("search")]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<PagedResult<ProductListDto>>> SearchProducts(
+            [FromQuery] string searchTerm,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Searching products with term: '{SearchTerm}', Page: {Page}, PageSize: {PageSize}", 
+                    searchTerm, page, pageSize);
+                
+                var result = await _productService.SearchProductsAsync(searchTerm, page, pageSize);
+                
+                _logger.LogInformation("Found {Count} products out of {Total} matching search term", 
+                    result.Items.Count(), result.TotalCount);
+                
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid search parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
@@ -63,22 +95,30 @@ namespace BackendApi.Controllers
         /// <param name="id">Product ID</param>
         /// <returns>Product details</returns>
         [HttpGet("{id:guid}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProductResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ProductDto>> GetProduct(Guid id)
+        public async Task<ActionResult<ProductResponseDto>> GetProduct(Guid id)
         {
-            _logger.LogInformation("Getting product with ID: {ProductId}", id);
-            
-            var product = await _productService.GetProductByIdAsync(id);
-            if (product == null)
+            try
             {
-                _logger.LogWarning("Product with ID {ProductId} not found", id);
-                return NotFound($"Product with ID {id} not found");
-            }
+                _logger.LogInformation("Getting product with ID: {ProductId}", id);
+                
+                var product = await _productService.GetProductByIdAsync(id);
+                if (product == null)
+                {
+                    _logger.LogWarning("Product with ID {ProductId} not found", id);
+                    return NotFound($"Product with ID {id} not found");
+                }
 
-            return Ok(product);
+                return Ok(product);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid product ID: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
@@ -87,144 +127,354 @@ namespace BackendApi.Controllers
         /// <param name="sku">Product SKU</param>
         /// <returns>Product details</returns>
         [HttpGet("by-sku/{sku}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProductResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ProductDto>> GetProductBySKU(string sku)
+        public async Task<ActionResult<ProductResponseDto>> GetProductBySKU(string sku)
         {
-            _logger.LogInformation("Getting product with SKU: {ProductSKU}", sku);
-            
-            var product = await _productService.GetProductBySKUAsync(sku);
-            if (product == null)
+            try
             {
-                _logger.LogWarning("Product with SKU {ProductSKU} not found", sku);
-                return NotFound($"Product with SKU {sku} not found");
-            }
+                _logger.LogInformation("Getting product with SKU: {ProductSKU}", sku);
+                
+                var product = await _productService.GetProductBySKUAsync(sku);
+                if (product == null)
+                {
+                    _logger.LogWarning("Product with SKU {ProductSKU} not found", sku);
+                    return NotFound($"Product with SKU {sku} not found");
+                }
 
-            return Ok(product);
+                return Ok(product);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid SKU: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Get products by category with pagination
+        /// </summary>
+        /// <param name="category">Category name</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
+        /// <returns>Paged products by category</returns>
+        [HttpGet("category/{category}")]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<PagedResult<ProductListDto>>> GetProductsByCategory(
+            string category,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Getting products by category: {Category}", category);
+                
+                var result = await _productService.GetProductsByCategoryAsync(category, page, pageSize);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid category parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Get products by brand with pagination
+        /// </summary>
+        /// <param name="brand">Brand name</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
+        /// <returns>Paged products by brand</returns>
+        [HttpGet("brand/{brand}")]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<PagedResult<ProductListDto>>> GetProductsByBrand(
+            string brand,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Getting products by brand: {Brand}", brand);
+                
+                var result = await _productService.GetProductsByBrandAsync(brand, page, pageSize);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid brand parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Get products by price range with pagination
+        /// </summary>
+        /// <param name="minPrice">Minimum price</param>
+        /// <param name="maxPrice">Maximum price</param>
+        /// <param name="page">Page number (default: 1)</param>
+        /// <param name="pageSize">Page size (default: 10)</param>
+        /// <returns>Paged products within price range</returns>
+        [HttpGet("price-range")]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<PagedResult<ProductListDto>>> GetProductsByPriceRange(
+            [FromQuery] decimal minPrice,
+            [FromQuery] decimal maxPrice,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Getting products in price range: {MinPrice} - {MaxPrice}", minPrice, maxPrice);
+                
+                var result = await _productService.GetProductsByPriceRangeAsync(minPrice, maxPrice, page, pageSize);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid price range parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Get top-rated products
+        /// </summary>
+        /// <param name="minimumRating">Minimum rating (default: 4.0)</param>
+        /// <param name="count">Number of products to return (default: 10)</param>
+        /// <returns>Top-rated products</returns>
+        [HttpGet("top-rated")]
+        [ProducesResponseType(typeof(IEnumerable<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<IEnumerable<ProductListDto>>> GetTopRatedProducts(
+            [FromQuery] decimal minimumRating = 4.0m,
+            [FromQuery] int count = 10)
+        {
+            try
+            {
+                _logger.LogInformation("Getting top {Count} products with minimum rating {MinRating}", count, minimumRating);
+                
+                var products = await _productService.GetTopRatedProductsAsync(minimumRating, count);
+                return Ok(products);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid top-rated parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
         /// Create a new product
         /// </summary>
-        /// <param name="createProductDto">Product data</param>
+        /// <param name="createDto">Product creation data</param>
         /// <returns>Created product</returns>
         [HttpPost]
-        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ProductResponseDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<ProductDto>> CreateProduct([FromBody] CreateProductDto createProductDto)
+        public async Task<ActionResult<ProductResponseDto>> CreateProduct(ProductCreateDto createDto)
         {
-            _logger.LogInformation("Creating new product with SKU: {ProductSKU}", createProductDto.SKU);
-            
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
-            }
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
 
-            var createdProduct = await _productService.CreateProductAsync(createProductDto);
-            
-            _logger.LogInformation("Product created successfully with ID: {ProductId}", createdProduct.Id);
-            return CreatedAtAction(nameof(GetProduct), new { id = createdProduct.Id }, createdProduct);
+                _logger.LogInformation("Creating new product with SKU: {SKU}", createDto?.SKU);
+                
+                var product = await _productService.CreateProductAsync(createDto!);
+                
+                _logger.LogInformation("Product created successfully with ID: {ProductId}", product.Id);
+                
+                return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
+            }
+            catch (ArgumentNullException ex)
+            {
+                _logger.LogWarning("Invalid create request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("Conflict creating product: {Message}", ex.Message);
+                return Conflict(ex.Message);
+            }
         }
 
         /// <summary>
         /// Update an existing product
         /// </summary>
         /// <param name="id">Product ID</param>
-        /// <param name="updateProductDto">Updated product data</param>
-        /// <returns>No content on success</returns>
+        /// <param name="updateDto">Product update data</param>
+        /// <returns>Updated product</returns>
         [HttpPut("{id:guid}")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProductResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductDto updateProductDto)
+        public async Task<ActionResult<ProductResponseDto>> UpdateProduct(Guid id, ProductUpdateDto updateDto)
         {
-            _logger.LogInformation("Updating product with ID: {ProductId}", id);
-            
-            if (!ModelState.IsValid)
+            try
             {
-                return BadRequest(ModelState);
-            }
+                _logger.LogInformation("Updating product with ID: {ProductId}", id);
+                
+                var product = await _productService.UpdateProductAsync(id, updateDto);
+                if (product == null)
+                {
+                    _logger.LogWarning("Product with ID {ProductId} not found for update", id);
+                    return NotFound($"Product with ID {id} not found");
+                }
 
-            var updatedProduct = await _productService.UpdateProductAsync(id, updateProductDto);
-            if (updatedProduct == null)
+                _logger.LogInformation("Product updated successfully with ID: {ProductId}", product.Id);
+                
+                return Ok(product);
+            }
+            catch (ArgumentException ex)
             {
-                _logger.LogWarning("Product with ID {ProductId} not found for update", id);
-                return NotFound($"Product with ID {id} not found");
+                _logger.LogWarning("Invalid update request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
-
-            _logger.LogInformation("Product with ID {ProductId} updated successfully", id);
-            return NoContent();
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("Conflict updating product: {Message}", ex.Message);
+                return Conflict(ex.Message);
+            }
         }
 
         /// <summary>
         /// Delete a product
         /// </summary>
         /// <param name="id">Product ID</param>
-        /// <returns>No content on success</returns>
+        /// <returns>No content if successful</returns>
         [HttpDelete("{id:guid}")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> DeleteProduct(Guid id)
         {
-            _logger.LogInformation("Deleting product with ID: {ProductId}", id);
-            
-            var deleted = await _productService.DeleteProductAsync(id);
-            if (!deleted)
+            try
             {
-                _logger.LogWarning("Product with ID {ProductId} not found for deletion", id);
-                return NotFound($"Product with ID {id} not found");
-            }
+                _logger.LogInformation("Deleting product with ID: {ProductId}", id);
+                
+                var success = await _productService.DeleteProductAsync(id);
+                if (!success)
+                {
+                    _logger.LogWarning("Product with ID {ProductId} not found for deletion", id);
+                    return NotFound($"Product with ID {id} not found");
+                }
 
-            _logger.LogInformation("Product with ID {ProductId} deleted successfully", id);
-            return NoContent();
+                _logger.LogInformation("Product deleted successfully with ID: {ProductId}", id);
+                
+                return NoContent();
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid delete request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
         }
 
         /// <summary>
-        /// Generate bulk products
+        /// Create multiple products in bulk
         /// </summary>
-        /// <param name="count">Number of products to generate (1-10000), defaults to 1000</param>
-        /// <param name="template">Product template to use as base for generation (optional)</param>
+        /// <param name="createDtos">Collection of product creation data</param>
         /// <returns>Number of products created</returns>
-        [HttpPost("generate/{count:int?}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [HttpPost("bulk")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult> BulkCreateProducts(IEnumerable<ProductCreateDto> createDtos)
+        {
+            try
+            {
+                _logger.LogInformation("Bulk creating {Count} products", createDtos?.Count() ?? 0);
+                
+                var count = await _productService.BulkCreateProductsAsync(createDtos!);
+                
+                _logger.LogInformation("Bulk created {Count} products successfully", count);
+                
+                return Created("", new { Message = $"Successfully created {count} products", Count = count });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid bulk create request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("Conflict in bulk create: {Message}", ex.Message);
+                return Conflict(ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Generate multiple sample products for testing
+        /// </summary>
+        /// <param name="count">Number of products to generate</param>
+        /// <returns>Number of products created</returns>
+        [HttpPost("generate/{count:int}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<object>> BulkGenerateProducts(int count = 1000, [FromBody] ProductDto? template = null)
+        public async Task<ActionResult<object>> GenerateProducts(int count)
         {
-            _logger.LogInformation("Starting bulk generation of {Count} products", count);
-            
-            if (count < 1 || count > 10000)
+            try
             {
-                return BadRequest("Count must be between 1,000 and 10,000");
+                _logger.LogInformation("Generating {Count} sample products", count);
+                
+                if (count <= 0 || count > 1000)
+                {
+                    return BadRequest("Count must be between 1 and 1000");
+                }
+
+                var createdCount = await _productService.GenerateProductsAsync(count);
+                
+                _logger.LogInformation("Successfully generated {CreatedCount} products", createdCount);
+                
+                return Ok(new { message = $"Successfully generated {createdCount} products", count = createdCount });
             }
-            
-            if (!ModelState.IsValid)
+            catch (ArgumentException ex)
             {
-                return BadRequest(ModelState);
+                _logger.LogWarning("Invalid generate request: {Message}", ex.Message);
+                return BadRequest(ex.Message);
             }
+        }
 
-            var startTime = DateTime.UtcNow;
-            var productsCreated = await _productService.BulkGenerateProductsAsync(count, template);
-            var endTime = DateTime.UtcNow;
-            var duration = endTime - startTime;
-
-            _logger.LogInformation("Successfully generated {ProductsCreated} products in {Duration}ms", 
-                productsCreated, duration.TotalMilliseconds);
-
-            return Ok(new
+        /// <summary>
+        /// Check if a product exists
+        /// </summary>
+        /// <param name="id">Product ID</param>
+        /// <returns>Boolean indicating existence</returns>
+        [HttpHead("{id:guid}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ProductExists(Guid id)
+        {
+            try
             {
-                Message = "Products generated successfully",
-                ProductsCreated = productsCreated,
-                RequestedCount = count,
-                GenerationTimeMs = duration.TotalMilliseconds,
-                Timestamp = endTime,
-                UsedTemplate = template != null
-            });
+                var exists = await _productService.ExistsAsync(id);
+                return exists ? Ok() : NotFound();
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid exists check: {Message}", ex.Message);
+                return BadRequest();
+            }
         }
     }
 }

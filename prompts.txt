@@ -1,0 +1,11 @@
+ Create an API endpoint (e.g., POST /products/generate) that, when called, generates at least 1000 "product" records and stores them in the chosen database. The product properties remain the same: name, description, category, brand, price, stock quantity, SKU, release date, availability status, customer rating, available colors and sizes. This endpoint could optionally take parameters for the number of products to generate or specific seed data.
+ 
+ 
+ 
+http://localhost:5000/swagger/v1/swagger.json
+ 
+Initial Data Load: The frontend application will call the GET /products on initial load to display the first set of products.
+Search Input: Provide a single input field (a text box) where the user can type their search query.
+Dynamic filtering with aPI calls: As the user types, the frontend should make API calls to the GET /products/search endpoint.
+Display result: Display the filtered list of products in a clear and readable format.
+Performance and Responsiveness: The filtering process should feel fast and smooth, even with 1000+ items and multiple characters typed.
