@@ -1,4 +1,6 @@
 using System.Net;
+using BackendApi.DTOs.Common;
+using BackendApi.Exceptions;
 
 namespace BackendApi.Middleware
 {
@@ -15,6 +17,7 @@ namespace BackendApi.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
+            string correlationId = context.TraceIdentifier;
             try
             {
                 await _next(context);
@@ -22,41 +25,59 @@ namespace BackendApi.Middleware
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An unhandled exception occurred");
-                await HandleExceptionAsync(context, ex);
+                await HandleExceptionAsync(context, ex, correlationId);
             }
         }
 
-        private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private static async Task HandleExceptionAsync(HttpContext context, Exception exception, string correlationId)
         {
             context.Response.ContentType = "application/json";
-            
-            object response;
+            ErrorResponse errorResponse = new ErrorResponse
+            {
+                CorrelationId = context.TraceIdentifier
+            };
 
             switch (exception)
             {
-                case ArgumentException:
+                case BusinessException bex:
                     context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                    response = new
-                    {
-                        message = "An error occurred while processing your request.",
-                        details = exception.Message
-                    };
+                    errorResponse.Message = bex.Message;
+                    errorResponse.Code = "BUSINESS_ERROR";
+                    errorResponse.Details = null;
                     break;
-                case KeyNotFoundException:
+                case ValidationException vex:
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    errorResponse.Message = vex.Message;
+                    errorResponse.Code = "VALIDATION_ERROR";
+                    errorResponse.Details = null;
+                    break;
+                case NotFoundException nfx:
                     context.Response.StatusCode = (int)HttpStatusCode.NotFound;
-                    response = new
-                    {
-                        message = "An error occurred while processing your request.",
-                        details = exception.Message
-                    };
+                    errorResponse.Message = nfx.Message;
+                    errorResponse.Code = "NOT_FOUND";
+                    errorResponse.Details = null;
+                    break;
+                case ArgumentException aex:
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    errorResponse.Message = "An error occurred while processing your request.";
+                    errorResponse.Code = "ARGUMENT_ERROR";
+                    errorResponse.Details = aex.Message;
+                    break;
+                case KeyNotFoundException kex:
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    errorResponse.Message = "Resource not found.";
+                    errorResponse.Code = "KEY_NOT_FOUND";
+                    errorResponse.Details = kex.Message;
                     break;
                 default:
                     context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-                    response = new { message = "An internal server error occurred." };
+                    errorResponse.Message = "An internal server error occurred.";
+                    errorResponse.Code = "INTERNAL_ERROR";
+                    errorResponse.Details = null;
                     break;
             }
 
-            var jsonResponse = System.Text.Json.JsonSerializer.Serialize(response);
+            var jsonResponse = System.Text.Json.JsonSerializer.Serialize(errorResponse);
             await context.Response.WriteAsync(jsonResponse);
         }
     }

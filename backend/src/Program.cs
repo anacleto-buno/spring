@@ -29,7 +29,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 // AutoMapper configuration
 builder.Services.AddAutoMapper(typeof(ProductMappingProfile));
 
-// Add controllers with API behavior options
+// Add controllers with FluentValidation and API behavior options
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {

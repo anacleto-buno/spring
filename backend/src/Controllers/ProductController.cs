@@ -23,6 +23,32 @@ namespace BackendApi.Controllers
         }
 
         /// <summary>
+        /// Filter products using POST for integration test compatibility
+        /// </summary>
+        /// <param name="filter">Filter and pagination parameters</param>
+        /// <returns>Paged list of products</returns>
+        [HttpPost("filter")]
+        [ProducesResponseType(typeof(PagedResult<ProductListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<PagedResult<ProductListDto>>> FilterProducts([FromBody] ProductFilterDto filter)
+        {
+            try
+            {
+                _logger.LogInformation("Filtering products with filter: {@Filter}", filter);
+                if (filter == null)
+                    filter = new ProductFilterDto();
+                var result = await _productService.GetProductsAsync(filter);
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning("Invalid filter parameters: {Message}", ex.Message);
+                return BadRequest(ex.Message);
+            }
+        }
+
+        /// <summary>
         /// Get products with filtering and pagination
         /// </summary>
         /// <param name="filter">Filter and pagination parameters</param>
